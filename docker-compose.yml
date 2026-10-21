@@ -1,0 +1,86 @@
+# 10 fausses bornes réparties sur 3 sites (un hôtel, une résidence, un magasin) + la base PostgreSQL.
+# Toutes les bornes utilisent la même image ; seuls le nom, l'emplacement, le profil et le port changent.
+# PROFIL = rythme de fréquentation simulé (voir simulator/clients_wifi.sh).
+# Garder cette liste synchronisée avec collector/bornes.py.
+
+x-borne: &borne
+  image: netpulse-borne
+  build: ./simulator
+  env_file: simulator/bornes.env   # réglages communs (fuseau horaire)
+
+services:
+  # --- Site 1 : Hotel Paris (ports 1161 à 1164) ---
+  borne-hotel-01:
+    <<: *borne
+    container_name: borne-hotel-01
+    environment: { NOM_BORNE: borne-hotel-01, EMPLACEMENT: "Hotel Paris - Accueil", PROFIL: hotel }
+    ports: ["1161:161/udp"]   # port 1161 de ton PC -> port SNMP 161 de la borne
+  borne-hotel-02:
+    <<: *borne
+    container_name: borne-hotel-02
+    environment: { NOM_BORNE: borne-hotel-02, EMPLACEMENT: "Hotel Paris - Etage 1", PROFIL: hotel }
+    ports: ["1162:161/udp"]
+  borne-hotel-03:
+    <<: *borne
+    container_name: borne-hotel-03
+    environment: { NOM_BORNE: borne-hotel-03, EMPLACEMENT: "Hotel Paris - Etage 2", PROFIL: hotel }
+    ports: ["1163:161/udp"]
+  borne-hotel-04:
+    <<: *borne
+    container_name: borne-hotel-04
+    environment: { NOM_BORNE: borne-hotel-04, EMPLACEMENT: "Hotel Paris - Restaurant", PROFIL: hotel }
+    ports: ["1164:161/udp"]
+
+  # --- Site 2 : Residence Lyon (ports 1165 à 1167) ---
+  borne-residence-01:
+    <<: *borne
+    container_name: borne-residence-01
+    environment: { NOM_BORNE: borne-residence-01, EMPLACEMENT: "Residence Lyon - Hall", PROFIL: residence }
+    ports: ["1165:161/udp"]
+  borne-residence-02:
+    <<: *borne
+    container_name: borne-residence-02
+    environment: { NOM_BORNE: borne-residence-02, EMPLACEMENT: "Residence Lyon - Batiment A", PROFIL: residence }
+    ports: ["1166:161/udp"]
+  borne-residence-03:
+    <<: *borne
+    container_name: borne-residence-03
+    environment: { NOM_BORNE: borne-residence-03, EMPLACEMENT: "Residence Lyon - Batiment B", PROFIL: residence }
+    ports: ["1167:161/udp"]
+
+  # --- Site 3 : Magasin Marseille (ports 1168 à 1170) ---
+  borne-magasin-01:
+    <<: *borne
+    container_name: borne-magasin-01
+    environment: { NOM_BORNE: borne-magasin-01, EMPLACEMENT: "Magasin Marseille - Caisses", PROFIL: magasin }
+    ports: ["1168:161/udp"]
+  borne-magasin-02:
+    <<: *borne
+    container_name: borne-magasin-02
+    environment: { NOM_BORNE: borne-magasin-02, EMPLACEMENT: "Magasin Marseille - Rayons", PROFIL: magasin }
+    ports: ["1169:161/udp"]
+  borne-magasin-03:
+    <<: *borne
+    container_name: borne-magasin-03
+    environment: { NOM_BORNE: borne-magasin-03, EMPLACEMENT: "Magasin Marseille - Reserve", PROFIL: magasin }
+    ports: ["1170:161/udp"]
+
+  # --- Le cahier : base PostgreSQL où le gardien enregistre chaque mesure ---
+  base:
+    image: postgres:17-alpine
+    container_name: netpulse-base
+    environment:
+      POSTGRES_DB: netpulse
+      POSTGRES_USER: netpulse
+      POSTGRES_PASSWORD: netpulse   # mot de passe de démo, uniquement pour ce POC local
+    ports: ["5433:5432"]            # 5433 : le 5432 de ton PC est déjà pris par un autre PostgreSQL
+    volumes:
+      - netpulse-donnees:/var/lib/postgresql/data   # les mesures survivent aux redémarrages
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netpulse -d netpulse"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  netpulse-donnees:

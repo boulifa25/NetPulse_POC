@@ -1,0 +1,5 @@
+# Garde des fins de ligne Linux pour les fichiers utilisés dans les conteneurs
+*.sh   text eol=lf
+*.conf text eol=lf
+Dockerfile text eol=lf
+*.env  text eol=lf

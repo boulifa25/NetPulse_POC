@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetPulse</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --series: #2a78d6;
+    --wash: rgba(42, 120, 214, 0.10);
+    --simule: rgba(137, 135, 129, 0.10);
+    --good: #0ca30c;
+    --good-text: #006300;
+    --warning: #fab219;
+    --warning-text: #8a5a00;
+    --critical: #d03b3b;
+    --critical-text: #b02a2a;
+    --chip: #f0efec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #f0efec;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --series: #3987e5;
+      --wash: rgba(57, 135, 229, 0.12);
+      --simule: rgba(137, 135, 129, 0.12);
+      --good-text: #0ca30c;
+      --warning-text: #fab219;
+      --critical-text: #f07070;
+      --chip: #262624;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --series: #3987e5;
+    --wash: rgba(57, 135, 229, 0.12);
+    --simule: rgba(137, 135, 129, 0.12);
+    --good-text: #0ca30c;
+    --warning-text: #fab219;
+    --critical-text: #f07070;
+    --chip: #262624;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 1240px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1, h2, h3 { margin: 0; }
+
+  .carte { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+
+  /* En-tête */
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+  h1 { font-size: 22px; letter-spacing: -0.01em; }
+  h1 span { color: var(--ink-2); font-weight: 400; }
+  .etat-gardien { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); }
+  .statut { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px;
+            padding: 3px 10px 3px 8px; border-radius: 999px; background: var(--chip); color: var(--ink); white-space: nowrap; }
+  .statut .icone { font-size: 11px; line-height: 1; }
+  .statut.ok .icone { color: var(--good); }
+  .statut.alerte .icone { color: var(--warning); }
+  .statut.panne .icone { color: var(--critical); }
+
+  .bandeau { margin-top: 16px; padding: 10px 14px; border-radius: 8px; font-weight: 500;
+             background: var(--chip); border-left: 4px solid var(--critical); }
+  .bandeau[hidden] { display: none; }
+
+  /* Chiffres clés */
+  .chiffres { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+  .chiffre .libelle { color: var(--ink-2); font-size: 13px; }
+  .chiffre .valeur { font-size: 30px; font-weight: 650; margin-top: 2px; }
+  .chiffre .valeur small { font-size: 16px; color: var(--ink-2); font-weight: 500; }
+  .chiffre .detail { color: var(--ink-2); font-size: 12.5px; min-height: 18px; }
+
+  /* Alertes */
+  .titre-section { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .titre-section h2 { font-size: 17px; }
+  .titre-section .aide { color: var(--muted); font-size: 12.5px; }
+  .alertes { list-style: none; margin: 0; padding: 0; }
+  .alerte { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline;
+            padding: 9px 0; border-top: 1px solid var(--grid); }
+  .alerte:first-child { border-top: 0; }
+  .gravite { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .gravite.critique { color: var(--critical-text); }
+  .gravite.avertissement { color: var(--warning-text); }
+  .gravite .icone { font-size: 11px; }
+  .gravite.critique .icone { color: var(--critical); }
+  .gravite.avertissement .icone { color: var(--warning); }
+  .alerte-texte { min-width: 0; }
+  .alerte-type { font-weight: 600; }
+  .alerte-message { color: var(--ink-2); }
+  .alerte-duree { color: var(--ink-2); font-size: 13px; white-space: nowrap; text-align: right; }
+  .alerte-duree small { display: block; color: var(--muted); font-size: 12px; }
+  .vide { color: var(--ink-2); padding: 6px 0; }
+  .vide .icone { color: var(--good); margin-right: 6px; }
+
+  /* Filtre de période */
+  .filtres { display: flex; align-items: center; gap: 10px; margin: 24px 0 12px; flex-wrap: wrap; }
+  .filtres .libelle { color: var(--ink-2); font-size: 13px; }
+  .segment { display: inline-flex; background: var(--chip); border-radius: 8px; padding: 2px; }
+  .segment button { font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--ink-2);
+                    padding: 5px 12px; border-radius: 6px; cursor: pointer; }
+  .segment button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600;
+                                         box-shadow: 0 0 0 1px var(--border); }
+  .segment button:focus-visible { outline: 2px solid var(--series); outline-offset: 1px; }
+
+  /* Sites */
+  .sites { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .site-tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .site h3 { font-size: 17px; }
+  .type-site { color: var(--muted); font-size: 12.5px; }
+  .site-resume { color: var(--ink-2); font-size: 13px; margin: 6px 0 10px; }
+  .site-resume strong { color: var(--ink); }
+
+  .graphique { position: relative; height: 150px; margin-bottom: 4px; }
+  .graphique svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .graphique .axe { font-size: 11px; fill: var(--muted); }
+  .graphique .grille { stroke: var(--grid); stroke-width: 1; }
+  .graphique .base { stroke: var(--axis); stroke-width: 1; }
+  .graphique .ligne-clients { fill: none; stroke: var(--series); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .graphique .aire-clients { fill: var(--wash); stroke: none; }
+  .graphique .ligne-normal { fill: none; stroke: var(--ink-2); stroke-width: 1.5; stroke-dasharray: 6 4; }
+  .graphique .zone-simulee { fill: var(--simule); }
+  .graphique .curseur { stroke: var(--ink-2); stroke-width: 1; }
+  .graphique .point { fill: var(--series); stroke: var(--surface); stroke-width: 2; }
+  .graphique .vide-graphique { font-size: 13px; fill: var(--muted); }
+  .bulle { position: absolute; pointer-events: none; background: var(--surface); color: var(--ink);
+           border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 12.5px;
+           box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12); white-space: nowrap; z-index: 2; }
+  .bulle[hidden] { display: none; }
+  .bulle .heure { font-weight: 600; margin-bottom: 2px; }
+  .bulle .ligne { display: flex; align-items: center; gap: 6px; color: var(--ink-2); }
+  .bulle .ligne b { color: var(--ink); font-weight: 600; }
+  .legende { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-2); font-size: 12.5px; margin-bottom: 10px; }
+  .legende span { display: inline-flex; align-items: center; gap: 6px; }
+  .trait { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--series); }
+  .trait.normal { border-top: 2px dashed var(--ink-2); }
+  .carre-simule { display: inline-block; width: 12px; height: 10px; background: var(--simule); border: 1px solid var(--grid); }
+
+  .bornes { list-style: none; margin: 0; padding: 0; }
+  .borne { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+           padding: 8px 0; border-top: 1px solid var(--grid); }
+  .borne .icone { font-size: 12px; text-align: center; }
+  .borne.en-ligne .icone { color: var(--good); }
+  .borne.muette .icone { color: var(--critical); }
+  .borne.inconnue .icone { color: var(--muted); }
+  .borne-nom { font-weight: 600; font-size: 14px; }
+  .borne-detail { color: var(--ink-2); font-size: 12.5px; }
+  .borne.muette .borne-detail { color: var(--critical-text); }
+  .badge { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; padding: 1px 6px;
+           border-radius: 4px; background: var(--chip); color: var(--warning-text); vertical-align: 1px; }
+  .borne-clients { text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .borne-clients small { display: block; font-weight: 400; color: var(--ink-2); font-size: 12px; }
+
+  section + section { margin-top: 16px; }
+  .historique .alerte { grid-template-columns: 9.5em auto minmax(0, 1fr) auto; }
+  .historique time { color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .lien-regroupe { color: var(--ink-2); font-size: 12.5px; }
+
+  footer { margin-top: 24px; color: var(--muted); font-size: 12.5px; }
+  footer a { color: var(--ink-2); }
+
+  @media (max-width: 1000px) { .sites { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 760px) { .chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) {
+    .alerte, .historique .alerte { grid-template-columns: auto minmax(0, 1fr); }
+    .alerte-duree { grid-column: 2; text-align: left; }
+    .historique time { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>NetPulse <span>· écran de contrôle</span></h1>
+    <div class="etat-gardien">
+      <span class="statut" id="statut-gardien"><span class="icone" aria-hidden="true">●</span><span>Connexion…</span></span>
+      <span id="mis-a-jour"></span>
+    </div>
+  </header>
+  <div class="bandeau" id="bandeau" role="alert" hidden></div>
+
+  <div class="chiffres">
+    <div class="carte chiffre"><div class="libelle">Bornes en ligne</div><div class="valeur" id="k-bornes">–</div><div class="detail" id="k-bornes-detail"></div></div>
+    <div class="carte chiffre"><div class="libelle">Clients WiFi connectés</div><div class="valeur" id="k-clients">–</div><div class="detail">sur les 3 sites</div></div>
+    <div class="carte chiffre"><div class="libelle">Alertes en cours</div><div class="valeur" id="k-alertes">–</div><div class="detail" id="k-alertes-detail"></div></div>
+    <div class="carte chiffre"><div class="libelle">Sites opérationnels</div><div class="valeur" id="k-sites">–</div><div class="detail" id="k-sites-detail"></div></div>
+  </div>
+
+  <section class="carte" aria-labelledby="t-alertes">
+    <div class="titre-section"><h2 id="t-alertes">Alertes en cours</h2><span class="aide">les critiques en premier</span></div>
+    <ul class="alertes" id="alertes-en-cours"><li class="vide">Chargement…</li></ul>
+  </section>
+
+  <div class="filtres">
+    <span class="libelle" id="l-periode">Période des graphiques</span>
+    <div class="segment" role="group" aria-labelledby="l-periode">
+      <button type="button" data-heures="6" aria-pressed="false">6 h</button>
+      <button type="button" data-heures="24" aria-pressed="true">24 h</button>
+      <button type="button" data-heures="72" aria-pressed="false">3 jours</button>
+    </div>
+  </div>
+
+  <div class="sites" id="sites"></div>
+
+  <section class="carte historique" aria-labelledby="t-historique">
+    <div class="titre-section"><h2 id="t-historique">Dernières alertes terminées</h2><span class="aide">les plus récentes en premier</span></div>
+    <ul class="alertes" id="alertes-terminees"><li class="vide">Chargement…</li></ul>
+  </section>
+
+  <footer>Données : <a href="/docs">API NetPulse</a> · rafraîchi toutes les 5 s · graphiques toutes les 30 s</footer>
+</main>
+
+<script>
+  const RAFRAICHIR_MS = 5000;
+  const RAFRAICHIR_GRAPHIQUES_MS = 30000;
+  const PAS_PAR_PERIODE = { 6: 5, 24: 10, 72: 30 };   // minutes par point selon la période
+  const NOMS_TYPES = { hotel: "Hôtel", residence: "Résidence", magasin: "Magasin" };
+  const NOMS_ALERTES = { panne: "Panne", surcharge: "Surcharge", anomalie: "Anomalie (IA)",
+                         site_hors_service: "Site hors service" };
+  const ETATS_SITE = {
+    operationnel: { classe: "ok", icone: "●", texte: "Opérationnel" },
+    degrade: { classe: "alerte", icone: "▲", texte: "Dégradé" },
+    hors_service: { classe: "panne", icone: "✕", texte: "Hors service" },
+    inconnu: { classe: "", icone: "○", texte: "Pas encore mesuré" },
+  };
+  const GRAVITES = { critique: { icone: "✕", texte: "Critique" },
+                     avertissement: { icone: "▲", texte: "Avertissement" } };
+
+  let periodeHeures = 24;
+  const historiques = {};     // site_id -> points
+  const cartes = {};          // site_id -> éléments de la carte (créés une seule fois)
+
+  const $ = (id) => document.getElementById(id);
+  const echapper = (t) => String(t ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function duree(secondes) {
+    secondes = Math.max(0, Math.round(secondes));
+    if (secondes < 60) return `${secondes} s`;
+    const min = Math.floor(secondes / 60);
+    if (min < 60) return `${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `${h} h ${String(min % 60).padStart(2, "0")}`;
+    return `${Math.floor(h / 24)} j ${h % 24} h`;
+  }
+  const heureCourte = (iso) => new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const dateHeure = (iso) => new Date(iso).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit",
+                                                                       hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const depuis = (iso) => (Date.now() - new Date(iso).getTime()) / 1000;
+
+  async function lire(chemin) {
+    const reponse = await fetch(chemin, { cache: "no-store" });
+    if (!reponse.ok) {
+      const corps = await reponse.json().catch(() => ({}));
+      throw new Error(corps.detail || `Erreur ${reponse.status} sur ${chemin}`);
+    }
+    return reponse.json();
+  }
+
+  // ------------------------------------------------------------------ alertes
+
+  function ligneAlerte(a, terminee) {
+    const g = GRAVITES[a.gravite];
+    const type = NOMS_ALERTES[a.type] || a.type;
+    const regroupee = a.regroupee_dans
+      ? `<div class="lien-regroupe">→ regroupée dans l'alerte #${a.regroupee_dans} (site hors service)</div>` : "";
+    const quand = terminee
+      ? `durée ${duree(a.duree_s)}`
+      : `depuis ${duree(depuis(a.debut))}<small>${heureCourte(a.debut)}</small>`;
+    return `<li class="alerte">
+      ${terminee ? `<time datetime="${echapper(a.debut)}">${dateHeure(a.debut)}</time>` : ""}
+      <span class="gravite ${a.gravite}"><span class="icone" aria-hidden="true">${g.icone}</span>${g.texte}</span>
+      <div class="alerte-texte"><span class="alerte-type">#${a.id} ${echapper(type)}</span> ·
+        <span class="alerte-message">${echapper(a.message)}</span>${regroupee}</div>
+      <div class="alerte-duree">${quand}</div>
+    </li>`;
+  }
+
+  function afficherAlertes(enCours, terminees) {
+    $("alertes-en-cours").innerHTML = enCours.length
+      ? enCours.map((a) => ligneAlerte(a, false)).join("")
+      : `<li class="vide"><span class="icone" aria-hidden="true">✓</span>Aucune alerte en cours : tout va bien.</li>`;
+    $("alertes-terminees").innerHTML = terminees.length
+      ? terminees.map((a) => ligneAlerte(a, true)).join("")
+      : `<li class="vide">Aucune alerte terminée pour l'instant.</li>`;
+  }
+
+  // ------------------------------------------------------------------ chiffres clés
+
+  function afficherChiffres(sites, bornes, alertes) {
+    const enLigne = bornes.filter((b) => b.en_ligne).length;
+    $("k-bornes").innerHTML = `${enLigne}<small> / ${bornes.length}</small>`;
+    const muettes = bornes.filter((b) => b.en_ligne === false).map((b) => b.nom);
+    $("k-bornes-detail").textContent = muettes.length ? `muette(s) : ${muettes.join(", ")}` : "toutes répondent";
+    $("k-clients").textContent = bornes.reduce((t, b) => t + (b.clients || 0), 0);
+    const critiques = alertes.filter((a) => a.gravite === "critique").length;
+    $("k-alertes").textContent = alertes.length;
+    $("k-alertes-detail").textContent = alertes.length
+      ? `${critiques} critique(s), ${alertes.length - critiques} avertissement(s)` : "aucune";
+    const ok = sites.filter((s) => s.etat === "operationnel").length;
+    $("k-sites").innerHTML = `${ok}<small> / ${sites.length}</small>`;
+    const autres = sites.filter((s) => s.etat !== "operationnel")
+      .map((s) => `${s.nom} : ${ETATS_SITE[s.etat].texte.toLowerCase()}`);
+    $("k-sites-detail").textContent = autres.join(" · ");
+  }
+
+  // ------------------------------------------------------------------ cartes des sites
+
+  function creerCarte(site) {
+    const carte = document.createElement("article");
+    carte.className = "carte site";
+    carte.innerHTML = `
+      <div class="site-tete">
+        <div><h3>${echapper(site.nom)}</h3><div class="type-site">${NOMS_TYPES[site.type] || site.type}</div></div>
+        <span class="statut" data-role="etat"></span>
+      </div>
+      <div class="site-resume" data-role="resume"></div>
+      <div class="legende" aria-hidden="true">
+        <span><i class="trait"></i>Clients mesurés</span>
+        <span><i class="trait normal"></i>Normal attendu (IA)</span>
+        <span data-role="legende-simule" hidden><i class="carre-simule"></i>Historique simulé</span>
+      </div>
+      <div class="graphique" data-role="graphique"><div class="bulle" hidden></div></div>
+      <ul class="bornes" data-role="bornes"></ul>`;
+    $("sites").appendChild(carte);
+    const elements = {
+      carte,
+      etat: carte.querySelector('[data-role="etat"]'),
+      resume: carte.querySelector('[data-role="resume"]'),
+      graphique: carte.querySelector('[data-role="graphique"]'),
+      legendeSimule: carte.querySelector('[data-role="legende-simule"]'),
+      bornes: carte.querySelector('[data-role="bornes"]'),
+    };
+    elements.bulle = elements.graphique.querySelector(".bulle");
+    return elements;
+  }
+
+  function afficherSites(sites, bornes, alertes) {
+    for (const site of sites) {
+      const c = cartes[site.id] ||= creerCarte(site);
+      const etat = ETATS_SITE[site.etat];
+      c.etat.className = `statut ${etat.classe}`;
+      c.etat.innerHTML = `<span class="icone" aria-hidden="true">${etat.icone}</span>${etat.texte}`;
+      c.resume.innerHTML = `<strong>${site.bornes_en_ligne}/${site.nb_bornes}</strong> bornes en ligne ·
+        <strong>${site.clients}</strong> clients · <strong>${site.alertes_en_cours}</strong> alerte(s)`;
+
+      c.bornes.innerHTML = bornes.filter((b) => b.site_id === site.id).map((b) => {
+        const badges = alertes.filter((a) => a.borne === b.nom && a.type !== "panne")
+          .map((a) => `<span class="badge">${echapper(NOMS_ALERTES[a.type])}</span>`).join("");
+        let classe, icone, detail, clients;
+        if (b.en_ligne === null) {
+          [classe, icone, detail, clients] = ["inconnue", "○", "jamais mesurée", "–"];
+        } else if (b.en_ligne) {
+          classe = "en-ligne"; icone = "●";
+          detail = `En ligne · ${echapper(b.emplacement)} · allumée depuis ${duree(b.allumee_depuis_s)}`;
+          clients = `${b.clients}<small>clients</small>`;
+        } else {
+          classe = "muette"; icone = "✕";
+          const panne = alertes.find((a) => a.borne === b.nom && a.type === "panne")
+                     || alertes.find((a) => a.site === site.nom && a.type === "site_hors_service");
+          detail = `Muette ${panne ? `depuis ${duree(depuis(panne.debut))}` : `(dernière mesure ${heureCourte(b.derniere_mesure)})`}`
+                 + ` · ${echapper(b.emplacement)}`;
+          clients = `–<small>port ${b.port}</small>`;
+        }
+        return `<li class="borne ${classe}">
+          <span class="icone" aria-hidden="true">${icone}</span>
+          <div><div class="borne-nom">${echapper(b.nom)}${badges}</div><div class="borne-detail">${detail}</div></div>
+          <div class="borne-clients">${clients}</div></li>`;
+      }).join("");
+    }
+  }
+
+  // ------------------------------------------------------------------ graphiques
+
+  function graduation(max) {
+    const brut = max / 3;
+    const puissance = 10 ** Math.floor(Math.log10(brut || 1));
+    const pas = [1, 2, 5, 10].map((m) => m * puissance).find((p) => p >= brut) || puissance * 10;
+    return { pas, haut: Math.max(pas, Math.ceil(max / pas) * pas) };
+  }
+
+  function dessinerGraphique(siteId) {
+    const c = cartes[siteId];
+    const points = historiques[siteId];
+    if (!c || !points) return;
+    const zone = c.graphique;
+    const L = zone.clientWidth, H = zone.clientHeight;
+    const marge = { g: 30, d: 8, h: 8, b: 20 };
+    const largeur = L - marge.g - marge.d, hauteur = H - marge.h - marge.b;
+    const ns = "http://www.w3.org/2000/svg";
+    zone.querySelector("svg")?.remove();
+    const svg = document.createElementNS(ns, "svg");
+    zone.prepend(svg);
+
+    const fin = Date.now(), debut = fin - periodeHeures * 3600e3;
+    const x = (t) => marge.g + ((t - debut) / (fin - debut)) * largeur;
+    const valeurs = points.flatMap((p) => [p.clients, p.attendu ?? 0]);
+    const { pas, haut } = graduation(Math.max(5, ...valeurs));
+    const y = (v) => marge.h + hauteur - (v / haut) * hauteur;
+    let html = "";
+
+    // Grille et axe des valeurs
+    for (let v = 0; v <= haut; v += pas) {
+      html += `<line class="${v === 0 ? "base" : "grille"}" x1="${marge.g}" x2="${L - marge.d}" y1="${y(v)}" y2="${y(v)}"/>`;
+      html += `<text class="axe" x="${marge.g - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+    }
+    // Axe du temps : repères sur des heures rondes (toutes les 2 h, 6 h ou 24 h selon la période)
+    const ecartRepere = { 6: 2, 24: 6, 72: 24 }[periodeHeures] * 3600e3;
+    const premier = new Date(debut);
+    premier.setMinutes(0, 0, 0);
+    if (periodeHeures === 72) premier.setHours(0);
+    for (let t = premier.getTime() + ecartRepere; t < fin - ecartRepere / 3; t += ecartRepere) {
+      if (t <= debut) continue;
+      const libelle = periodeHeures === 72
+        ? new Date(t).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })
+        : `${new Date(t).getHours()} h`;
+      html += `<text class="axe" x="${x(t)}" y="${H - 4}" text-anchor="middle">${libelle}</text>`;
+    }
+    html += `<text class="axe" x="${x(fin)}" y="${H - 4}" text-anchor="end">maintenant</text>`;
+
+    if (!points.length) {
+      html += `<text class="vide-graphique" x="${marge.g + largeur / 2}" y="${marge.h + hauteur / 2}" text-anchor="middle">Pas encore de mesures sur cette période</text>`;
+      svg.innerHTML = html;
+      c.legendeSimule.hidden = true;
+      return;
+    }
+
+    // Zone d'historique simulé (étape 6), pour ne pas le confondre avec les vraies mesures
+    const simules = points.filter((p) => p.simulee);
+    c.legendeSimule.hidden = !simules.length;
+    if (simules.length) {
+      const x1 = Math.max(marge.g, x(new Date(simules[0].debut)));
+      const x2 = x(new Date(simules[simules.length - 1].debut));
+      html += `<rect class="zone-simulee" x="${x1}" y="${marge.h}" width="${Math.max(0, x2 - x1)}" height="${hauteur}"/>`;
+    }
+
+    // Découpe en tronçons : pas de trait à travers un trou (gardien arrêté)
+    const pasMs = PAS_PAR_PERIODE[periodeHeures] * 60e3;
+    const troncons = [];
+    let courant = [];
+    points.forEach((p, i) => {
+      const t = new Date(p.debut).getTime();
+      if (i && t - new Date(points[i - 1].debut).getTime() > 2.5 * pasMs) { troncons.push(courant); courant = []; }
+      courant.push({ ...p, t });
+    });
+    troncons.push(courant);
+
+    for (const tr of troncons) {
+      const pts = tr.map((p) => `${x(p.t).toFixed(1)},${y(p.clients).toFixed(1)}`).join(" ");
+      if (tr.length > 1) {
+        html += `<polygon class="aire-clients" points="${x(tr[0].t).toFixed(1)},${y(0)} ${pts} ${x(tr[tr.length - 1].t).toFixed(1)},${y(0)}"/>`;
+      }
+      html += tr.length > 1
+        ? `<polyline class="ligne-clients" points="${pts}"/>`
+        : `<circle class="point" cx="${x(tr[0].t)}" cy="${y(tr[0].clients)}" r="4"/>`;
+      // Par-dessus : là où la borne se comporte normalement, les deux courbes se confondent.
+      const normal = tr.filter((p) => p.attendu !== null)
+        .map((p) => `${x(p.t).toFixed(1)},${y(p.attendu).toFixed(1)}`).join(" ");
+      if (normal) html += `<polyline class="ligne-normal" points="${normal}"/>`;
+    }
+    html += `<line class="curseur" y1="${marge.h}" y2="${marge.h + hauteur}" visibility="hidden"/>`;
+    html += `<circle class="point" r="5" visibility="hidden"/>`;
+    html += `<rect x="${marge.g}" y="0" width="${largeur}" height="${H}" fill="transparent" data-role="survol"/>`;
+    svg.innerHTML = html;
+    svg.setAttribute("role", "img");
+    const dernier = points[points.length - 1];
+    svg.setAttribute("aria-label", `Clients du site sur ${periodeHeures} h ; dernier point : ${dernier.clients} clients`
+      + (dernier.attendu !== null ? `, normal attendu ${Math.round(dernier.attendu)}` : ""));
+
+    // Survol : le curseur se cale sur le point le plus proche, la bulle donne les valeurs
+    const tous = troncons.flat();
+    const curseur = svg.querySelector(".curseur"), marque = svg.querySelector("circle.point[visibility]");
+    const survol = svg.querySelector('[data-role="survol"]');
+    const nbBornes = c.bornes.children.length;
+    const montrer = (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const px = evt.clientX - rect.left;
+      const t = debut + ((px - marge.g) / largeur) * (fin - debut);
+      const p = tous.reduce((a, b) => Math.abs(b.t - t) < Math.abs(a.t - t) ? b : a);
+      const cx = x(p.t);
+      curseur.setAttribute("x1", cx); curseur.setAttribute("x2", cx); curseur.setAttribute("visibility", "visible");
+      marque.setAttribute("cx", cx); marque.setAttribute("cy", y(p.clients)); marque.setAttribute("visibility", "visible");
+      c.bulle.innerHTML = `<div class="heure">${dateHeure(p.debut)}${p.simulee ? " · simulé" : ""}</div>
+        <div class="ligne"><i class="trait"></i>Clients <b>${p.clients}</b></div>
+        <div class="ligne"><i class="trait normal"></i>Normal <b>${p.attendu === null ? "–" : Math.round(p.attendu)}</b></div>
+        <div class="ligne">Bornes en ligne <b>${p.bornes_en_ligne}/${nbBornes}</b></div>`;
+      c.bulle.hidden = false;
+      const bl = c.bulle.offsetWidth;
+      c.bulle.style.left = `${Math.min(Math.max(0, cx - bl / 2), L - bl)}px`;
+      c.bulle.style.top = `${-c.bulle.offsetHeight - 6}px`;
+    };
+    const cacher = () => {
+      curseur.setAttribute("visibility", "hidden"); marque.setAttribute("visibility", "hidden"); c.bulle.hidden = true;
+    };
+    survol.addEventListener("pointermove", montrer);
+    survol.addEventListener("pointerdown", montrer);
+    survol.addEventListener("pointerleave", cacher);
+  }
+
+  async function rafraichirGraphiques() {
+    const pas = PAS_PAR_PERIODE[periodeHeures];
+    await Promise.all(Object.keys(cartes).map(async (id) => {
+      try {
+        historiques[id] = await lire(`/sites/${id}/historique?heures=${periodeHeures}&pas_minutes=${pas}`);
+        dessinerGraphique(id);
+      } catch { /* l'état général affiche déjà le problème */ }
+    }));
+  }
+
+  // ------------------------------------------------------------------ état du gardien
+
+  function afficherSante(sante, erreur) {
+    const statut = $("statut-gardien"), bandeau = $("bandeau");
+    let classe, icone, texte, message = "";
+    if (erreur) {
+      [classe, icone, texte] = ["panne", "✕", "API injoignable"];
+      message = "L'API ne répond pas : lance « python collector\\api.py » (les données affichées sont figées).";
+    } else if (!sante.base) {
+      [classe, icone, texte] = ["panne", "✕", "Base injoignable"];
+      message = "La base de données ne répond pas : « docker compose up -d base ». Les données affichées sont figées.";
+    } else if (!sante.gardien_actif) {
+      [classe, icone, texte] = ["alerte", "▲", "Gardien arrêté"];
+      message = sante.derniere_mesure
+        ? `Aucune nouvelle mesure depuis ${duree(depuis(sante.derniere_mesure))} : lance « python collector\\gardien.py ». L'état affiché est celui de ${heureCourte(sante.derniere_mesure)}.`
+        : "Aucune mesure encore : lance « python collector\\gardien.py ».";
+    } else {
+      [classe, icone, texte] = ["ok", "●", "Gardien actif"];
+    }
+    statut.className = `statut ${classe}`;
+    statut.innerHTML = `<span class="icone" aria-hidden="true">${icone}</span><span>${texte}</span>`;
+    bandeau.textContent = message;
+    bandeau.hidden = !message;
+    $("mis-a-jour").textContent = sante?.derniere_mesure ? `dernière mesure à ${dateHeure(sante.derniere_mesure)}` : "";
+  }
+
+  // ------------------------------------------------------------------ boucle
+
+  async function rafraichir() {
+    let sante;
+    try {
+      sante = await lire("/sante");
+    } catch {
+      afficherSante(null, true);
+      return;
+    }
+    afficherSante(sante, false);
+    if (!sante.base) return;
+    try {
+      const [sites, bornes, enCours, terminees] = await Promise.all([
+        lire("/sites"), lire("/bornes"), lire("/alertes?en_cours=true&limite=200"),
+        lire("/alertes?en_cours=false&limite=12"),
+      ]);
+      enCours.sort((a, b) => (a.gravite === "critique" ? 0 : 1) - (b.gravite === "critique" ? 0 : 1)
+                             || new Date(a.debut) - new Date(b.debut));
+      const premiereFois = !Object.keys(cartes).length;
+      afficherChiffres(sites, bornes, enCours);
+      afficherAlertes(enCours, terminees);
+      afficherSites(sites, bornes, enCours);
+      if (premiereFois) rafraichirGraphiques();
+    } catch (e) {
+      $("bandeau").textContent = e.message;
+      $("bandeau").hidden = false;
+    }
+  }
+
+  document.querySelectorAll(".segment button").forEach((bouton) => bouton.addEventListener("click", () => {
+    periodeHeures = Number(bouton.dataset.heures);
+    document.querySelectorAll(".segment button").forEach((b) => b.setAttribute("aria-pressed", String(b === bouton)));
+    rafraichirGraphiques();
+  }));
+  let attenteRedim;
+  window.addEventListener("resize", () => {
+    clearTimeout(attenteRedim);
+    attenteRedim = setTimeout(() => Object.keys(cartes).forEach(dessinerGraphique), 150);
+  });
+
+  rafraichir();
+  setInterval(rafraichir, RAFRAICHIR_MS);
+  setInterval(rafraichirGraphiques, RAFRAICHIR_GRAPHIQUES_MS);
+</script>
+</body>
+</html>
